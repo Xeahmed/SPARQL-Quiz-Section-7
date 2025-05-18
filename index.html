@@ -1,0 +1,657 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script>```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Section 7: SPARQL Quiz</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(to bottom, #f0f0f0, #ffffff);
+            color: #333;
+            transition: all 0.3s ease;
+        }
+
+        body.dark-mode {
+            background: linear-gradient(to bottom, #333, #000);
+            color: #ddd;
+        }
+
+        header, footer {
+            background: #007BFF;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+        }
+
+        header p, footer p {
+            font-size: 1rem;
+        }
+
+        #dark-mode-toggle {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            background: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        #dark-mode-toggle:hover {
+            background: #0056b3;
+        }
+
+        #quiz-container {
+            flex: 1;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        #progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #ddd;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        #progress {
+            height: 100%;
+            background: #28a745;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        #question-container {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            animation: fadeIn 0.5s ease;
+        }
+
+        body.dark-mode #question-container {
+            background: #444;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        #question-text {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+        }
+
+        .option {
+            display: block;
+            padding: 0.8rem;
+            margin: 0.5rem 0;
+            background: #f8f9fa;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        body.dark-mode .option {
+            background: #555;
+        }
+
+        .option:hover {
+            background: #e9ecef;
+        }
+
+        body.dark-mode .option:hover {
+            background: #666;
+        }
+
+        input[type="radio"] {
+            margin-right: 0.5rem;
+        }
+
+        #submit-btn, #next-btn {
+            padding: 0.8rem 1.5rem;
+            margin: 1rem 0.5rem 0 0;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        #submit-btn {
+            background: #007BFF;
+            color: white;
+        }
+
+        #submit-btn:hover {
+            animation: bounce 0.3s;
+            background: #0056b3;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        #next-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        #next-btn:hover {
+            background: #218838;
+        }
+
+        #feedback {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 5px;
+            direction: rtl;
+            font-size: 1rem;
+            display: none;
+        }
+
+        #feedback.correct {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        #feedback.wrong {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        #score-container {
+            display: none;
+            text-align: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        body.dark-mode #score-container {
+            background: #444;
+        }
+
+        #score-container p {
+            font-size: 1.2rem;
+            margin: 0.5rem 0;
+            direction: rtl;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.5rem;
+            }
+
+            #quiz-container {
+                padding: 1rem;
+            }
+
+            #question-text {
+                font-size: 1rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header h1 {
+                font-size: 1.2rem;
+            }
+
+            header p, footer p {
+                font-size: 0.9rem;
+            }
+
+            #dark-mode-toggle {
+                padding: 0.4rem 0.8rem;
+                font-size: 0.9rem;
+            }
+
+            #question-container {
+                padding: 1rem;
+            }
+
+            #question-text {
+                font-size: 0.9rem;
+            }
+
+            .option {
+                padding: 0.6rem;
+                font-size: 0.9rem;
+            }
+
+            #submit-btn, #next-btn {
+                padding: 0.6rem 1rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button id="dark-mode-toggle">Toggle Dark Mode</button>
+    <header>
+        <h1>Section 7: SPARQL Quiz</h1>
+        <p>This quiz page was created by Eng: XE Ahmed Refat – EELU Student Sohag branch</p>
+    </header>
+    <div id="quiz-container">
+        <div id="progress-bar"><div id="progress"></div></div>
+        <div id="question-container">
+            <p id="question-text"></p>
+            <div id="options"></div>
+            <button id="submit-btn">Submit</button>
+            <button id="next-btn" style="display: none;">Next</button>
+            <div id="feedback"></div>
+        </div>
+        <div id="score-container">
+            <h2>Final Score</h2>
+            <p id="score-text"></p>
+            <p id="percentage-text"></p>
+            <p id="performance-text"></p>
+        </div>
+    </div>
+    <footer>
+        <p>© Eng: XE Ahmed Refat – EELU Sohag</p>
+    </footer>
+    <script>
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        const questions = [
+            // MCQs
+            {
+                question: "What does SPARQL stand for?",
+                options: ["Semantic Protocol and RDF Query Language", "SPARQL Protocol and RDF Query Language", "Simple Protocol and RDF Query Language", "Structured Protocol and RDF Query Language"],
+                correct: "B",
+                difficulty: "Easy",
+                explanation: "SPARQL يعني SPARQL Protocol and RDF Query Language، وهو لغة استعلام معيارية من W3C للبيانات بصيغة RDF، زي ما ذُكر في المحاضرة."
+            },
+            {
+                question: "What type of data is SPARQL designed to query?",
+                options: ["Relational tables", "Graph-based RDF data", "XML documents", "JSON objects"],
+                correct: "B",
+                difficulty: "Easy",
+                explanation: "SPARQL مصمم لاستعلام بيانات RDF القائمة على الجراف، مش زي SQL اللي بيستعلم جداول، زي ما واضح في المحاضرة."
+            },
+            {
+                question: "Which SPARQL query type returns true or false?",
+                options: ["SELECT", "CONSTRUCT", "ASK", "DESCRIBE"],
+                correct: "C",
+                difficulty: "Easy",
+                explanation: "استعلام ASK بيرجع قيمة True أو False بناءً على وجود البيانات، زي ما ذُكر في أنواع الاستعلامات."
+            },
+            {
+                question: "What does a SELECT query return?",
+                options: ["RDF triples", "A graph description", "Variable bindings", "True or false"],
+                correct: "C",
+                difficulty: "Medium",
+                explanation: "استعلام SELECT بيرجع ربط المتغيرات (Variable Bindings) اللي بتتطابق مع الثلاثيات في البيانات، زي ما في مثال الطلاب وأسماؤهم."
+            },
+            {
+                question: "Which query type returns RDF triples?",
+                options: ["ASK", "SELECT", "CONSTRUCT", "DESCRIBE"],
+                correct: "C",
+                difficulty: "Medium",
+                explanation: "استعلام CONSTRUCT بيرجع ثلاثيات RDF جديدة بناءً على الشرط، زي ما في مثال التسجيل بقيمة True."
+            },
+            {
+                question: "What does the DESCRIBE query return?",
+                options: ["Variable bindings", "True or false", "RDF triples", "A graph describing resources"],
+                correct: "D",
+                difficulty: "Medium",
+                explanation: "استعلام DESCRIBE بيرجع جراف يوصف الموارد، يعني كل الثلاثيات اللي المورد فيها فاعل أو مفعول، زي مثال JohnSmith."
+            },
+            {
+                question: "What is the purpose of the PREFIX in a SPARQL query?",
+                options: ["To define variables", "To shorten URIs", "To filter results", "To sort results"],
+                correct: "B",
+                difficulty: "Easy",
+                explanation: "الـ PREFIX بيُستخدم لتقصير الـ URIs، زي uni: بدل كتابة <http://www.example.org/university#> كاملة."
+            },
+            {
+                question: "In the query to list students and their names, what does 'a' represent?",
+                options: ["A variable", "The type predicate", "A filter condition", "A sorting function"],
+                correct: "B",
+                difficulty: "Medium",
+                explanation: "الـ 'a' في استعلام SPARQL هو اختصار للـ predicate rdf:type، بيحدد نوع الكيان، زي uni:Student في مثال الأسماء."
+            },
+            {
+                question: "What does the FILTER clause do in a SPARQL query?",
+                options: ["Defines a prefix", "Sorts the results", "Restricts results based on conditions", "Constructs new triples"],
+                correct: "C",
+                difficulty: "Medium",
+                explanation: "الـ FILTER بيحدد شرط لتقييد النتايج، زي البحث عن أسماء تحتوي على 'john' في مثال البحث."
+            },
+            {
+                question: "Which query finds professors and the courses they teach?",
+                options: ["SELECT ?student ?name", "SELECT ?course ?dept", "SELECT ?professor ?course", "SELECT ?student"],
+                correct: "C",
+                difficulty: "Hard",
+                explanation: "الاستعلام SELECT ?professor ?course بيجيب الأساتذة والكورسات اللي بيدرسوها، زي ما في مثال الجامعة."
+            },
+            {
+                question: "What is the structure of RDF data?",
+                options: ["Tables", "Triples", "Key-value pairs", "Arrays"],
+                correct: "B",
+                difficulty: "Easy",
+                explanation: "بيانات RDF بتتخزن كثلاثيات (Subject – Predicate – Object)، زي (ex:Person1, ex:hasName, 'Alice')."
+            },
+            {
+                question: "Which SPARQL query type is used to check if JohnSmith is a professor?",
+                options: ["SELECT", "ASK", "CONSTRUCT", "DESCRIBE"],
+                correct: "B",
+                difficulty: "Medium",
+                explanation: "استعلام ASK بيُستخدم للتحقق إذا كان JohnSmith أستاذ، ويرجع True أو False، زي المثال في المحاضرة."
+            },
+            {
+                question: "What does the query 'SELECT ?course ?dept' retrieve?",
+                options: ["Students and names", "Courses and departments", "Professors and courses", "Students in a course"],
+                correct: "B",
+                difficulty: "Medium",
+                explanation: "الاستعلام SELECT ?course ?dept بيجيب الكورسات والأقسام اللي بتقدمها، زي ما في مثال الجامعة."
+            },
+            {
+                question: "Which function is used in the search for students by name?",
+                options: ["SORT", "CONTAINS", "MATCH", "SEARCH"],
+                correct: "B",
+                difficulty: "Hard",
+                explanation: "الدالة CONTAINS بتُستخدم في استعلام البحث عن الطلاب حسب الاسم، زي البحث عن 'john' في المثال."
+            },
+            {
+                question: "What is SPARQL primarily used for in the Semantic Web?",
+                options: ["Data storage", "Data visualization", "Querying RDF data", "Data encryption"],
+                correct: "C",
+                difficulty: "Easy",
+                explanation: "SPARQL بيُستخدم أساسًا لاستعلام بيانات RDF في الويب الدلالي، زي ما ذُكر في المحاضرة."
+            },
+            {
+                question: "What does the 'uni:enrolledIn uni:CS101' clause specify?",
+                options: ["A professor teaching a course", "A student enrolled in CS101", "A department offering a course", "A course description"],
+                correct: "B",
+                difficulty: "Medium",
+                explanation: "الشرط uni:enrolledIn uni:CS101 بيحدد الطلاب المسجلين في كورس CS101، زي ما في مثال الجامعة."
+            },
+            {
+                question: "Which organization standardized SPARQL?",
+                options: ["IEEE", "W3C", "ISO", "IETF"],
+                correct: "B",
+                difficulty: "Easy",
+                explanation: "SPARQL هو لغة معيارية من W3C (World Wide Web Consortium)، زي ما ذُكر في المحاضرة."
+            },
+            {
+                question: "What does the CONSTRUCT query in the example do?",
+                options: ["Lists student names", "Checks professor status", "Creates triples with isEnrolled true", "Describes a resource"],
+                correct: "C",
+                difficulty: "Hard",
+                explanation: "استعلام CONSTRUCT في المثال بيعمل ثلاثيات جديدة بتقول إن الطلاب مسجلين (isEnrolled true)."
+            },
+            {
+                question: "Which query lists students enrolled in a specific course?",
+                options: ["SELECT ?professor ?course", "SELECT ?course ?dept", "SELECT ?student ?name", "SELECT ?student"],
+                correct: "C",
+                difficulty: "Medium",
+                explanation: "الاستعلام SELECT ?student ?name مع شرط uni:enrolledIn بيجيب الطلاب المسجلين في كورس معين، زي المثال."
+            },
+            {
+                question: "What is the purpose of SPARQL in Linked Data?",
+                options: ["Data compression", "Querying distributed data sources", "Data validation", "Data replication"],
+                correct: "B",
+                difficulty: "Easy",
+                explanation: "SPARQL بيُستخدم في Linked Data عشان الاستعلام عبر مصادر بيانات موزعة، زي ما ذُكر في المحاضرة."
+            },
+            // True/False
+            {
+                question: "SPARQL is similar to SQL but designed for graph-based data.",
+                correct: "True",
+                difficulty: "Easy",
+                explanation: "صح، SPARQL مشابه لـ SQL بس مصمم لبيانات RDF القائمة على الجراف، مش الجداول."
+            },
+            {
+                question: "RDF data is stored as key-value pairs.",
+                correct: "False",
+                difficulty: "Easy",
+                explanation: "غلط، بيانات RDF بتتخزن كثلاثيات (Subject – Predicate – Object)، مش كـ key-value pairs."
+            },
+            {
+                question: "The ASK query returns RDF triples.",
+                correct: "False",
+                difficulty: "Medium",
+                explanation: "غلط، استعلام ASK بيرجع True أو False، مش ثلاثيات RDF زي CONSTRUCT."
+            },
+            {
+                question: "SPARQL can query distributed data sources.",
+                correct: "True",
+                difficulty: "Easy",
+                explanation: "صح، SPARQL بيقدر يستعلم مصادر بيانات موزعة، وده جزء من استخدامه في Linked Data."
+            },
+            {
+                question: "The SELECT query in the example lists professors and their courses.",
+                correct: "False",
+                difficulty: "Medium",
+                explanation: "غلط، استعلام SELECT في المثال بيجيب الطلاب وأسماؤهم، مش الأساتذة والكورسات."
+            },
+            {
+                question: "SPARQL is a core component of knowledge graphs.",
+                correct: "True",
+                difficulty: "Easy",
+                explanation: "صح، SPARQL هو مكون أساسي لجرافات المعرفة (Knowledge Graphs)، زي ما ذُكر في المحاضرة."
+            },
+            {
+                question: "The DESCRIBE query returns variable bindings.",
+                correct: "False",
+                difficulty: "Medium",
+                explanation: "غلط، استعلام DESCRIBE بيرجع جراف يوصف المورد، مش ربط متغيرات زي SELECT."
+            },
+            {
+                question: "The FILTER clause uses the CONTAINS function to search for 'john' in names.",
+                correct: "True",
+                difficulty: "Hard",
+                explanation: "صح، الـ FILTER بيستخدم دالة CONTAINS للبحث عن 'john' في أسماء الطلاب، زي المثال."
+            },
+            {
+                question: "SPARQL queries are executed on relational databases.",
+                correct: "False",
+                difficulty: "Easy",
+                explanation: "غلط، استعلامات SPARQL بتُنفذ على بيانات RDF، مش قواعد بيانات علائقية زي SQL."
+            },
+            {
+                question: "The query 'SELECT ?student ?name' retrieves students enrolled in CS101.",
+                correct: "True",
+                difficulty: "Medium",
+                explanation: "صح، الاستعلام SELECT ?student ?name مع شرط uni:enrolledIn uni:CS101 بيجيب الطلاب المسجلين في CS101."
+            },
+            {
+                question: "The PREFIX is optional in SPARQL queries.",
+                correct: "True",
+                difficulty: "Medium",
+                explanation: "صح، الـ PREFIX اختياري، بس بيسهل الكتابة بتقصير الـ URIs، زي ما في الأمثلة."
+            },
+            {
+                question: "SPARQL cannot manipulate RDF data.",
+                correct: "False",
+                difficulty: "Easy",
+                explanation: "غلط، SPARQL بيقدر يستعلم ويتعامل مع بيانات RDF، زي ما في استعلام CONSTRUCT."
+            },
+            {
+                question: "The CONSTRUCT query can create new RDF triples.",
+                correct: "True",
+                difficulty: "Medium",
+                explanation: "صح، استعلام CONSTRUCT بيقدر يعمل ثلاثيات RDF جديدة، زي إضافة isEnrolled true."
+            },
+            {
+                question: "The 'a' keyword in SPARQL queries is used to define a variable.",
+                correct: "False",
+                difficulty: "Medium",
+                explanation: "غلط، الـ 'a' هو اختصار لـ rdf:type، مش لتعريف متغير، زي ما في استعلامات الطلاب."
+            },
+            {
+                question: "SPARQL is used to query Linked Data applications.",
+                correct: "True",
+                difficulty: "Easy",
+                explanation: "صح، SPARQL بيُستخدم لاستعلام تطبيقات Linked Data، زي ما ذُكر في المحاضرة."
+            }
+        ];
+
+        let currentQuestion = 0;
+        let score = 0;
+        const totalQuestions = questions.length;
+
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options');
+        const submitBtn = document.getElementById('submit-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const feedback = document.getElementById('feedback');
+        const progress = document.getElementById('progress');
+        const quizContainer = document.getElementById('quiz-container');
+        const scoreContainer = document.getElementById('score-container');
+        const scoreText = document.getElementById('score-text');
+        const percentageText = document.getElementById('percentage-text');
+        const performanceText = document.getElementById('performance-text');
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+
+        function loadQuestion() {
+            const q = questions[currentQuestion];
+            questionText.innerHTML = `${currentQuestion + 1}. ${escapeHTML(q.question)} (${q.difficulty})`;
+            optionsContainer.innerHTML = '';
+            if (q.options) {
+                q.options.forEach((option, index) => {
+                    const label = String.fromCharCode(65 + index); // A, B, C, D
+                    const div = document.createElement('div');
+                    div.className = 'option';
+                    div.innerHTML = `<input type="radio" name="answer" value="${label}"> ${label}. ${escapeHTML(option)}`;
+                    optionsContainer.appendChild(div);
+                });
+            } else {
+                ['True', 'False'].forEach(option => {
+                    const div = document.createElement('div');
+                    div.className = 'option';
+                    div.innerHTML = `<input type="radio" name="answer" value="${option}"> ${option}`;
+                    optionsContainer.appendChild(div);
+                });
+            }
+            submitBtn.style.display = 'inline-block';
+            nextBtn.style.display = 'none';
+            feedback.style.display = 'none';
+            updateProgress();
+        }
+
+        function updateProgress() {
+            const percentage = ((currentQuestion + 1) / totalQuestions) * 100;
+            progress.style.width = `${percentage}%`;
+        }
+
+        submitBtn.addEventListener('click', () => {
+            const selected = document.querySelector('input[name="answer"]:checked');
+            if (!selected) {
+                feedback.style.display = 'block';
+                feedback.className = 'wrong';
+                feedback.innerHTML = 'من فضلك اختار إجابة!';
+                return;
+            }
+            const answer = selected.value;
+            const q = questions[currentQuestion];
+            const isCorrect = (q.options && answer === q.correct) || (!q.options && answer === q.correct);
+            feedback.style.display = 'block';
+            feedback.className = isCorrect ? 'correct' : 'wrong';
+            feedback.innerHTML = isCorrect ? 'صحيح! ' + q.explanation : 'غلط! ' + q.explanation;
+            if (isCorrect) score++;
+            submitBtn.style.display = 'none';
+            nextBtn.style.display = 'inline-block';
+        });
+
+        nextBtn.addEventListener('click', () => {
+            currentQuestion++;
+            if (currentQuestion < totalQuestions) {
+                loadQuestion();
+            } else {
+                showScore();
+            }
+        });
+
+        function showScore() {
+            quizContainer.style.display = 'none';
+            scoreContainer.style.display = 'block';
+            const percentage = (score / totalQuestions) * 100;
+            scoreText.innerHTML = `الدرجة النهائية: ${score} من ${totalQuestions}`;
+            percentageText.innerHTML = `النسبة: ${percentage.toFixed(2)}%`;
+            if (percentage >= 80) {
+                performanceText.innerHTML = 'ممتاز! عملت شغل عالي جداً، كمل كده!';
+            } else if (percentage >= 50) {
+                performanceText.innerHTML = 'كويس! بس فيه مجال للتحسين، ركز أكتر.';
+            } else {
+                performanceText.innerHTML = 'محتاج تذاكر أكتر! جرب تراجع الـ lecture تاني.';
+            }
+        }
+
+        darkModeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            darkModeToggle.textContent = document.body.classList.contains('dark-mode') ? 'Light Mode' : 'Dark Mode';
+        });
+
+        loadQuestion();
+    </script>
+</body>
+</html>
+```
