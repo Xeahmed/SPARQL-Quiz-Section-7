@@ -1,4 +1,3 @@
-```markdown
 # SPARQL Quiz - Section 7
 
 ## Overview
